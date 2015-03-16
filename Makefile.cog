@@ -6,7 +6,7 @@ CC=propeller-elf-gcc
 MKDIR = mkdir -p
 LTO=
 CFLAGS=-Os $(LTO) -m$(MODEL) $(CHIP) -nostdinc -I./include
-AR=propeller-elf-gcc-ar
+AR=propeller-elf-ar
 
 VPATH=.:cog:misc:stdio:stdlib:string:sys:sys/propeller:time:drivers:fdlibm
 
