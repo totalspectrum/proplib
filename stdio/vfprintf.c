@@ -149,6 +149,7 @@
 #define HAVE_LONG_LONG_INT          1
 #define HAVE_LONG_DOUBLE            1
 #define HAVE_LOCALECONV             0
+#define USE_SEPARATORS              0
 
 #if HAVE_UNSIGNED_LONG_LONG_INT
 #define ULLONG unsigned long long int
@@ -280,8 +281,10 @@
 static size_t fmtstr(FILE *, const char *, int, int, int, int);
 static size_t fmtint(FILE *, INTMAX_T, int, int, int, int);
 static size_t fmtflt(FILE *, LDOUBLE, int, int, int, int *);
+#if USE_SEPARATORS
 static size_t printsep(FILE *);
 static int getnumsep(int);
+#endif
 static int convert(UINTMAX_T, char *, size_t, int, int);
 
 #ifdef FLOAT_SUPPORT
@@ -352,10 +355,12 @@ vfprintf(FILE *fp, const char *format, va_list args)
 				flags |= PRINT_F_ZERO;
 				ch = *format++;
 				break;
+#if USE_SEPARATORS
 			case '\'':	/* SUSv2 flag (not in C99). */
 				flags |= PRINT_F_QUOTE;
 				ch = *format++;
 				break;
+#endif
 			default:
 				state = PRINT_S_WIDTH;
 				break;
@@ -760,7 +765,11 @@ fmtint(FILE *fp, INTMAX_T value, int base, int width,
 	int spadlen = 0;	/* Amount to space pad. */
 	int zpadlen = 0;	/* Amount to zero pad. */
 	int pos;
+#if USE_SEPARATORS
 	int separators = (flags & PRINT_F_QUOTE);
+#else
+        const int separators = 0;
+#endif
 	int noprecision = (precision == -1);
 	size_t len = 0;
 
@@ -799,9 +808,10 @@ fmtint(FILE *fp, INTMAX_T value, int base, int width,
 		}
 	}
 
+#if USE_SEPARATORS
 	if (separators)	/* Get the number of group separators we'll print. */
 		separators = getnumsep(pos);
-
+#endif
 	zpadlen = precision - pos - separators;
 	spadlen = width                         /* Minimum field width. */
 	    - separators                        /* Number of separators. */
@@ -842,8 +852,10 @@ fmtint(FILE *fp, INTMAX_T value, int base, int width,
 	while (pos > 0) {	/* The actual digits. */
 		pos--;
 		OUTCHAR(fp, len,iconvert[pos]);
+#if USE_SEPARATORS
 		if (separators > 0 && pos > 0 && pos % 3 == 0)
 			printsep(fp);
+#endif
 	}
 	while (spadlen < 0) {	/* Trailing spaces. */
 		OUTCHAR(fp, len,' ');
@@ -879,7 +891,11 @@ fmtflt(FILE *fp, LDOUBLE fvalue, int width,
 	int epos = 0;
 	int fpos = 0;
 	int ipos = 0;
+#if USE_SEPARATORS
 	int separators = (flags & PRINT_F_QUOTE);
+#else
+        const int separators = 0;
+#endif
 	int estyle = (flags & PRINT_F_TYPE_E);
 	size_t len = 0;
 #if HAVE_LOCALECONV && HAVE_LCONV_DECIMAL_POINT
@@ -1085,9 +1101,10 @@ again:
 	 */
 	if (precision > 0 || flags & PRINT_F_NUM)
 		emitpoint = 1;
+#if USE_SEPARATORS
 	if (separators)	/* Get the number of group separators we'll print. */
 		separators = getnumsep(ipos);
-
+#endif
 	padlen = width                  /* Minimum field width. */
 	    - ipos                      /* Number of integer digits. */
 	    - epos                      /* Number of exponent characters. */
@@ -1124,14 +1141,18 @@ again:
 	while (ipos > 0) {	/* Integer part. */
 		ipos--;
 		OUTCHAR(fp, len, iconvert[ipos]);
+#if USE_SEPARATORS
 		if (separators > 0 && (ipos+izeros) > 0 && (ipos+izeros) % 3 == 0)
 			printsep(fp);
+#endif
 	}
 	while (izeros > 0) {    /* Integer part. */
 	        izeros--;
 		OUTCHAR(fp, len, '0');
+#if USE_SEPARATORS
 		if (separators > 0 && izeros > 0 && izeros % 3 == 0)
 			printsep(fp);
+#endif
 	}
 	if (emitpoint) {	/* Decimal point. */
 #if HAVE_LOCALECONV && HAVE_LCONV_DECIMAL_POINT
@@ -1161,6 +1182,7 @@ again:
 #endif
 }
 
+#if USE_SEPARATORS
 static size_t
 printsep(FILE *fp)
 {
@@ -1195,6 +1217,7 @@ getnumsep(int digits)
 #endif	/* HAVE_LOCALECONV && HAVE_LCONV_THOUSANDS_SEP */
 	return separators;
 }
+#endif
 
 #ifdef FLOAT_SUPPORT
 static int
