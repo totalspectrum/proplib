@@ -77,7 +77,7 @@ LOBJS = serialparam.o \
 #        c++-alloc.o \
 #        tinystream.o
 
-TINYDIR = $(MODELDIR)/tiny
+TINYDIR = $(MODELDIR)/obj
 TINY_LOBJS = $(addprefix $(TINYDIR)/, $(LOBJS))
 
 # Flags to build with; customize these as necessary...

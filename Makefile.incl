@@ -175,7 +175,7 @@ $(MODELDIR)/libpthread.a: $(MODEL_PTHREAD_OBJS)
 	$(AR) rs $@ $^
 
 $(MODELDIR)/libtiny.a:
-	$(MAKE) -C tiny MODEL=$(MODEL) MODELDIR=../$(MODELDIR) lib
+	$(MAKE) -C tiny MODEL=$(MODEL) MODELDIR=$(MODELDIR)/tiny lib
 
 $(MODELDIR)/float_simple_printf.o: simple_printf.c
 	$(CC) $(CFLAGS) -o $@ -DFLOAT_SUPPORT -c $<

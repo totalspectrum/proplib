@@ -48,14 +48,14 @@ tiny:	$(OBJDIR)
 	make -f Makefile.incl MODEL=xmm SHORTDOUBLES=1 OBJDIR=$(OBJDIR) tiny
 
 install-tiny:
-	cp $(OBJDIR)/lmm/libtiny.a $(DEST)/lib/
-	cp $(OBJDIR)/lmm/short-doubles/libtiny.a $(DEST)/lib/short-doubles/
-	cp $(OBJDIR)/cmm/libtiny.a $(DEST)/lib/cmm/
-	cp $(OBJDIR)/cmm/short-doubles/libtiny.a $(DEST)/lib/cmm/short-doubles/
-	cp $(OBJDIR)/xmmc/libtiny.a $(DEST)/lib/xmmc
-	cp $(OBJDIR)/xmmc/short-doubles/libtiny.a $(DEST)/lib/xmmc/short-doubles
-	cp $(OBJDIR)/xmm/libtiny.a $(DEST)/lib/xmm/
-	cp $(OBJDIR)/xmm/short-doubles/libtiny.a $(DEST)/lib/xmm/short-doubles/
+	cp $(OBJDIR)/lmm/tiny/libtiny.a $(DEST)/lib/
+	cp $(OBJDIR)/lmm/short-doubles/tiny/libtiny.a $(DEST)/lib/short-doubles/
+	cp $(OBJDIR)/cmm/tiny/libtiny.a $(DEST)/lib/cmm/
+	cp $(OBJDIR)/cmm/short-doubles/tiny/libtiny.a $(DEST)/lib/cmm/short-doubles/
+	cp $(OBJDIR)/xmmc/tiny/libtiny.a $(DEST)/lib/xmmc
+	cp $(OBJDIR)/xmmc/short-doubles/tiny/libtiny.a $(DEST)/lib/xmmc/short-doubles
+	cp $(OBJDIR)/xmm/tiny/libtiny.a $(DEST)/lib/xmm/
+	cp $(OBJDIR)/xmm/short-doubles/tiny/libtiny.a $(DEST)/lib/xmm/short-doubles/
 	cp tiny/tinyio.h tiny/tinystream.h tiny/tinystream tiny/siodev.h $(DEST)/include
 
 hello.elf: hello.c
