@@ -11,6 +11,7 @@
  * @li _CHAR_IS_UNSIGNED 1 or 0, depending
  * @li _NORETURN: attribute indicating a function does not return
  * @li _CONST:    indicates that the function does not change or examine memory
+ * @li _WEAK:     indicates a weak definition that will be overridden by any strong definition
  */
 
 #ifndef _COMPILER_H
@@ -43,10 +44,22 @@
 #define _NAN __builtin_nan("1")
 #define _NANL __builtin_nanl("1")
 #define _NANF __builtin_nanf("1")
+
+/*
+ * __weak_alias creates a weak alias for a symbol
+ * for example, if you have a function "myprintf" and
+ * you want it to provide the "printf" function unless
+ * somebody explicitly defines printf elsewhere, you would
+ * do  __weak_alias(printf, myprintf)
+ */
 #ifndef __weak_alias
 #define __weak_alias(sym, oldfunc) \
   __asm__( " .weak _" #sym "\n  .equ _" #sym ",_" #oldfunc "\n" )
 #endif
+
+/*
+ * create a strong alias for a symbol
+ */
 #ifndef __strong_alias
 #define __strong_alias(sym, oldfunc) \
   __asm__( " .global _" #sym "\n  .equ _" #sym ",_" #oldfunc "\n" )

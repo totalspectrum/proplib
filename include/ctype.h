@@ -76,7 +76,13 @@ extern "C" {
 /**
  * Checks for a digit (0 through 9) character.
  */
+#ifdef __propeller__
+/* on the Propeller, this is slightly faster/smaller than the array lookup! */
+#define isdigit(c)     (((c)>='0')&&((c)<='9'))
+#else
 #define isdigit(c)     __isctype(c, _CTd)
+#endif
+
 /**
  * Checks for a any printable character except for space.
  */
@@ -90,7 +96,11 @@ extern "C" {
  * locale, islower returns true only for the characters defined as
  * lowercase letters.
  */
+#ifdef __propeller__
+#define islower(c)     (((c)>='a')&&((c)<='z'))
+#else
 #define islower(c)     __isctype(c, _CTl)
+#endif
 /**
  * Checks for any printable character including space.
  */
@@ -116,7 +126,11 @@ extern "C" {
  * locale, isupper returns true only for the characters defined as
  * uppercase letters.
  */
+#ifdef __propeller__
+#define isupper(c)     (((c)>='A')&&((c)<='Z'))
+#else
 #define isupper(c)     __isctype(c, _CTu)
+#endif
 /**
  * Checks for a hexadecimal digit: 0 through 9, a through f, or A through F.
  */
