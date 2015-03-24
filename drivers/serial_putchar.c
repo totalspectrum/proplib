@@ -62,7 +62,7 @@ _serial_putchar(int c)
         txmask = (1UL << _txpin);
     }
     if (c == '\n') {
-        _serial_tx('*', txmask, bitcycles);
+        _serial_tx('\r', txmask, bitcycles);
     }
     return _serial_tx(c, txmask, bitcycles);
 }

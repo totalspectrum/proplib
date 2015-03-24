@@ -1,20 +1,36 @@
 /*
- * Copyright (c) 2011 Parallax, Inc.
- * Written by Eric R. Smith, Total Spectrum Software Inc.
+ * Copyright (c) 2015 Total Spectrum Software Inc.
  * MIT licensed (see terms at end of file)
  */
 #include <stdio.h>
 #include <stdarg.h>
 
+struct sprintf_info {
+    char *ptr;
+    char *end;
+};
+
+static int sputc(int c, void *arg)
+{
+    struct sprintf_info *S = (struct sprintf_info *)arg;
+    if (S->end && S->ptr == S->end) return -1;
+    *S->ptr++ = c;
+    return 0;
+}
+
 int snprintf(char *str, size_t len, const char *fmt, ...)
 {
-  FILE tmpfile;
   va_list args;
   int r;
+  struct sprintf_info S;
+
+  S.ptr = str;
+  S.end = str + len;
+
   va_start(args, fmt);
-  r = vfprintf(__string_file(&tmpfile, str, "w", len), fmt, args);
-  fclose(&tmpfile);
+  r = _dofmt( sputc, &S, fmt, &args);
   va_end(args);
+  sputc(0, &S );
   return r;
 }
 

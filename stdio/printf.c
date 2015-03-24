@@ -1,20 +1,26 @@
 /*
- * Copyright (c) 2011 Parallax, Inc.
+ * Copyright (c) 2015 Total Spectrum Software Inc.
  * Written by Eric R. Smith, Total Spectrum Software Inc.
  * MIT licensed (see terms at end of file)
  */
 #include <stdio.h>
 #include <stdarg.h>
+#include <sys/serial.h>
 
 int printf(const char *fmt, ...)
 {
     va_list args;
     int r;
     va_start(args, fmt);
-    r = vfprintf(stdout, fmt, args);
+    r = _dofmt( (_FmtPutfunc)putchar, 0, fmt, &args);
     va_end(args);
     return r;
 }
+
+// if no external definition of putchar is used, use
+// the simple serial putchar
+
+_DEFAULT_SERIAL_PUTCHAR
 
 /* +--------------------------------------------------------------------
  * ¦  TERMS OF USE: MIT License

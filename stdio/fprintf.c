@@ -11,7 +11,7 @@ int fprintf(FILE *fp, const char *fmt, ...)
     va_list args;
     int r;
     va_start(args, fmt);
-    r = vfprintf(fp, fmt, args);
+    r = _dofmt( (_FmtPutfunc)fputc, (void *)fp, fmt, &args);
     va_end(args);
     return r;
 }

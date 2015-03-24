@@ -23,7 +23,7 @@ puts(const char *str)
 // if no external definition of putchar is used, use
 // the simple serial putchar
 
-DEFAULT_SERIAL_PUTCHAR
+_DEFAULT_SERIAL_PUTCHAR
 
 /* +--------------------------------------------------------------------
  * ¦  TERMS OF USE: MIT License

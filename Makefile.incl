@@ -46,9 +46,9 @@ VPATH=.:misc:stdio:stdlib:string:sys:sys/propeller:time:drivers:math:pthreads:wc
 all: $(MODELDIR) $(MATHDIR) $(MODELDIR)/libc.a $(MODELDIR)/libm.a $(MODELDIR)/libpthread.a
 tiny: $(MODELDIR)/libtiny.a
 
-# $(PRINTF) are the functions which depend on vfprintf;
+# $(PRINTF) are the functions which depend on _dofmt;
 # we include floating point versions of these in the math library
-PRINTF = printf.o fprintf.o vprintf.o sprintf.o snprintf.o vsprintf.o vsnprintf.o
+PRINTF = printf.o fprintf.o vfprintf.o vprintf.o sprintf.o snprintf.o vsprintf.o vsnprintf.o
 SCANF =  scanf.o vscanf.o sscanf.o fscanf.o
  
 STDIO = clearerr.o feof.o ferror.o fflush.o \
@@ -57,8 +57,8 @@ STDIO = clearerr.o feof.o ferror.o fflush.o \
 	setvbuf.o setbuf.o setlinebuf.o setbuffer.o \
 	fopen.o fopen_intern.o freopen.o \
 	fwrite.o fread.o fseek.o ftell.o fgetpos.o fsetpos.o rewind.o \
-	stringio.o vfprintf.o vfscanf.o \
-	$(PRINTF) $(SCANF) \
+	stringio.o \
+	dofmt.o $(PRINTF) vfscanf.o $(SCANF) \
 	simple_printf.o \
 	default_io.o init_io.o remove.o fmemopen.o \
 	tmpnam.o tmpfile.o
@@ -150,7 +150,7 @@ LIBM = 	k_rem_pio2.o k_cos.o k_sin.o k_tan.o \
 	isnan.o isinf.o k_sincos.o k_sincosf.o
 
 
-LIBM_EXTRA =	float_printf.o float_simple_printf.o $(PRINTF) \
+LIBM_EXTRA =	float_dofmt.o float_simple_printf.o $(PRINTF) \
 	   	float_scanf.o $(SCANF)
 
 # Don't build propeller.c now since the only function in it is now a macro
@@ -180,7 +180,7 @@ $(MODELDIR)/libtiny.a:
 $(MODELDIR)/float_simple_printf.o: simple_printf.c
 	$(CC) $(CFLAGS) -o $@ -DFLOAT_SUPPORT -c $<
 
-$(MODELDIR)/float_printf.o: vfprintf.c
+$(MODELDIR)/float_dofmt.o: dofmt.c
 	$(CC) $(CFLAGS) -o $@ -DFLOAT_SUPPORT -c $<
 
 $(MODELDIR)/float_scanf.o: vfscanf.c

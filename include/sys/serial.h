@@ -42,7 +42,7 @@ int _serial_putchar(int c);
  * of it are harmless, and will be overridden by any "strong" (normal)
  * definition for putchar()
  */
-#define DEFAULT_SERIAL_PUTCHAR \
+#define _DEFAULT_SERIAL_PUTCHAR \
     _WEAK int putchar(int c) { return _serial_putchar(c); }
 
 

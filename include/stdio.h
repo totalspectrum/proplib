@@ -1,6 +1,7 @@
 /*
  * Implementation of stdio library functions
- * Copyright (c) 2011 Parallax, Inc.
+ * Copyright (c) 2011-2013 Parallax, Inc.
+ * Copyright (c) 2015 Total Spectrum Software Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -201,6 +202,30 @@ extern "C" {
   extern _atomic_t __stdio_lock;
 #define __lock_stdio()   __lock(&__stdio_lock)
 #define __unlock_stdio() __unlock(&__stdio_lock)
+
+    /* internal structures and defines for printf */
+    typedef struct _printf_info {
+        // per argument state
+        int width;
+        int prec;
+        int pad;                 // padding character '0' or ' '
+        int spec;                // actual specification character
+        unsigned int alt   :1;   // the '#' flag
+        unsigned int space :1;
+        unsigned int left  :1;   // the '-' flag was specified
+        unsigned int showsign :1; // the '+' flag
+        unsigned int longflag :1; // 'l' modifier appeared (used for %ls, %lc)
+
+        int size;    // size of argument in bytes
+
+        // global state
+        int byteswritten;
+        int (*putchar)(int c, void *arg);
+        void *putarg;
+    } _Printf_info;
+
+    typedef int (*_FmtPutfunc)(int, void *);
+    int _dofmt( _FmtPutfunc put, void *outarg, const char *fmt, __va_list *args);
 
 #if defined(__cplusplus)
 }
