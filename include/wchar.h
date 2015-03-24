@@ -52,7 +52,7 @@ extern "C" {
   size_t   wcslen(const wchar_t *s);
 
 
-  /* internal versions of some of the above functions */
+  /* internal pointers used for conversion */
   extern size_t (*_mbrtowc_ptr)( wchar_t *pwc, const char *s, size_t n, mbstate_t *ps);
   extern size_t (*_wcrtomb_ptr)( char *s, wchar_t wc, mbstate_t *ps );
 
