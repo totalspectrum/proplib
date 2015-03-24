@@ -17,3 +17,9 @@ _wcrtomb_ascii(char *s, wchar_t wcorig, mbstate_t *ps)
 }
 
 size_t (*_wcrtomb_ptr)(char *, wchar_t, mbstate_t *) = _wcrtomb_ascii;
+
+size_t
+wcrtomb( char *s, wchar_t wc, mbstate_t *MB)
+{
+    return (*_wcrtomb_ptr)(s, wc, MB);
+}
