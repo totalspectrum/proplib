@@ -65,6 +65,14 @@
   __asm__( " .global _" #sym "\n  .equ _" #sym ",_" #oldfunc "\n" )
 #endif
 
+/*
+ * create a reference for a symbol
+ */
+#ifndef __reference
+#define __reference(sym) \
+  __asm__( " .global _" #sym "\n" )
+#endif
+
 #else
 
 #error "compiler not yet supported"

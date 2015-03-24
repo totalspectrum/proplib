@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <propeller.h>
 #include <sys/driver.h>
+#include <sys/serial.h>
 
 /* globals that the loader may change; these represent the default
  * pins to use
@@ -28,109 +29,19 @@ extern unsigned int _baud;
  */
 
 /*
- * We need _serial_putbyte to always be fcached so that the timing is
- * OK.
+ * _serial_putbyte just hands off to _serial_tx
  */
-#ifdef __PROPELLER2__
-__attribute__((fcache))
-static int
-_serial_putbyte(int c, FILE *fp)
-{
-  unsigned int bitcycles = fp->drvarg[3];
-  unsigned int txpin = fp->drvarg[1];
-
-  unsigned int waitcycles;
-  int i, value;
-
-  /* set output */
-  setpin(txpin, 1);
-
-  value = (c | 256) << 1;
-  waitcycles = getcnt() + bitcycles;
-  for (i = 0; i < 10; i++)
-    {
-      waitcycles = waitcnt2(waitcycles, bitcycles);
-      setpin(txpin, (value & 1) ? 1 : 0);
-      value >>= 1;
-    }
-  // if we turn off DIRA, then some boards (like QuickStart) are left with
-  // floating pins and garbage output; if we leave it on, we're left with
-  // a high pin and other cogs cannot produce output on it
-  // the solution is to use FullDuplexSerialDriver instead on applications
-  // with multiple cogs
-  //_DIRA &= ~txmask;
-  return c;
-}
-#else
-__attribute__((fcache))
 static int
 _serial_putbyte(int c, FILE *fp)
 {
   unsigned int txmask = fp->drvarg[1];
   unsigned int bitcycles = fp->drvarg[3];
-  unsigned int waitcycles;
-  int i, value;
 
-  /* set output */
-  _OUTA |= txmask;
-  _DIRA |= txmask;
-
-  value = (c | 256) << 1;
-  waitcycles = getcnt() + bitcycles;
-  for (i = 0; i < 10; i++)
-    {
-      waitcycles = __builtin_propeller_waitcnt(waitcycles, bitcycles);
-      if (value & 1)
-        _OUTA |= txmask;
-      else
-        _OUTA &= ~txmask;
-      value >>= 1;
-    }
-  // if we turn off DIRA, then some boards (like QuickStart) are left with
-  // floating pins and garbage output; if we leave it on, we're left with
-  // a high pin and other cogs cannot produce output on it
-  // the solution is to use FullDuplexSerialDriver instead on applications
-  // with multiple cogs
-  //_DIRA &= ~txmask;
-  return c;
+  return _serial_tx(c, txmask, bitcycles);
 }
-#endif
 
 /* and here is getbyte */
 /* we need to put it in fcache to get it to work in XMM and CMM modes */
-#ifdef __PROPELLER2__
-__attribute__((fcache))
-static int
-_serial_getbyte(FILE *fp)
-{
-  unsigned int bitcycles = fp->drvarg[3];
-  unsigned int rxpin = fp->drvarg[0];
-  unsigned int waitcycles;
-  int value;
-  int i;
-
-  /* wait for a start bit */
-  if (fp->_flag & _IONONBLOCK) {
-    /* if non-blocking I/O, return immediately if no data */
-    if ( 0 != getpin(rxpin) )
-      return -1;
-  } else {
-    while (getpin(rxpin))
-      ;
-  }
-  /* sync for one half bit */
-  waitcycles = getcnt() + (bitcycles>>1) + bitcycles;
-  value = 0;
-  for (i = 0; i < 8; i++) {
-    waitcycles = waitcnt2(waitcycles, bitcycles);
-    value = (getpin(rxpin) << 7) | (value >> 1);
-  }
-  /* wait for the line to go high (as it will when the stop bit arrives) */
-    while (!getpin(rxpin))
-      ;
-  return value;
-}
-#else
 __attribute__((fcache))
 static int
 _serial_getbyte(FILE *fp)
@@ -163,7 +74,6 @@ _serial_getbyte(FILE *fp)
   __builtin_propeller_waitpeq(rxmask, rxmask);
   return value;
 }
-#endif
 
 
 /*

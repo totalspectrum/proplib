@@ -183,7 +183,7 @@ extern "C" {
 
 #ifndef __PROPELLER_COG__
 #define putc(x, stream)    fputc(x, stream)
-#define putchar(x)         fputc(x, stdout)
+//#define putchar(x)         fputc(x, stdout) // actually a simpler putchar is default
 #define getc(stream)       fgetc(stream)
 #define getchar()          fgetc(stdin)
 #endif

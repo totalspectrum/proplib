@@ -27,3 +27,10 @@ _InitIO(void)
   /* open stderr */
   __fopen_driver(stderr, _driverlist[0], "", "w");
 }
+
+/* if we got pulled in, we want to define a "real" putchar that will
+ * override the default simple one provided by serial_putchar
+ */
+int putchar(int c) {
+    return fputc(c, stdout);
+}

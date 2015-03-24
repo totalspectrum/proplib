@@ -12,6 +12,7 @@
 #include <cog.h>
 #include <sys/driver.h>
 #include <propeller.h>
+#include <compiler.h>
 
 #include "FdSerial.h"
 
@@ -254,6 +255,9 @@ _Driver _FullDuplexSerialDriver =
     _FdSerial_getbyte,
     _FdSerial_putbyte,
   };
+
+/* make sure _InitIO is pulled in */
+__reference(__fopen_driver);
 
 /*
 +------------------------------------------------------------------------------------------------------------------------------+

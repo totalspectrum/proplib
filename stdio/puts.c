@@ -2,20 +2,28 @@
  * @puts.c
  * Implementation of stdio library functions
  *
- * Copyright (c) 2011 Parallax, Inc.
- * Written by Eric R. Smith, Total Spectrum Software Inc.
+ * Copyright (c) 2015 Total Spectrum Software Inc.
+ * Written by Eric R. Smith
  * MIT licensed (see terms at end of file)
  */
 #include <stdio.h>
-#include <sys/thread.h>
-
-extern int __do_fputs(const char *str, FILE *fp, int newline);
+#include <sys/serial.h>
 
 int
 puts(const char *str)
 {
-  return __do_fputs(str, stdout, 1);
+    int c;
+    int r = 0;
+    while ( (c = *str++) != 0 )
+        r |= putchar(c);
+    r |= putchar('\n');
+    return r;
 }
+
+// if no external definition of putchar is used, use
+// the simple serial putchar
+
+DEFAULT_SERIAL_PUTCHAR
 
 /* +--------------------------------------------------------------------
  * ¦  TERMS OF USE: MIT License
