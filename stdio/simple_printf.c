@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <compiler.h>
+#include <sys/serial.h>
 
 /*
  * very simple printf -- just understands a few format features
@@ -269,6 +270,9 @@ int __simple_printf(const char *fmt, ...)
 #ifdef FLOAT_SUPPORT
 __weak_alias(__simple_float_printf, __simple_printf);
 #endif
+
+// get the simple putchar if possible
+_DEFAULT_SERIAL_PUTCHAR
 
 /* +--------------------------------------------------------------------
  * ¦  TERMS OF USE: MIT License
