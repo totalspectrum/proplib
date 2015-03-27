@@ -553,6 +553,7 @@ static void disassemble(double64 x, double64 *ap, int *np, int basen)
     double64 p;
     double64 base = (double64)basen;
     int n;
+    int i;
 
     if (x == 0.0) {
         *ap = x;
@@ -565,7 +566,7 @@ static void disassemble(double64 x, double64 *ap, int *np, int basen)
         n = (3 * n)/10 ;
     }
     
-    for(;;) {
+    for( i = 0; i < 30; i++) {  // provide a retry limit
         //
         //
         p = _intpow(1.0, base, n);
@@ -618,17 +619,25 @@ emitsign(_Printf_info *pi, char *buf, int sign, int hex)
 // find the digits for x 
 // we will output "prec" digits after the decimal point
 //
+
+// DOUBLE_xxx define macros describing the structure of IEEE double precision
+// for rounding purposes we move things up 4 bits (giving 1 extra digit of headroom)
+// these are the EXTRA_xxx macros
+
 #define DOUBLE_BITS 52
 #define DOUBLE_ONE (1ULL<<DOUBLE_BITS)
 #define DOUBLE_MASK (DOUBLE_ONE-1)
 #define MAX_PREC 16
+
+#define EXTRA_BITS 60
+#define EXTRA_ONE (1ULL<<EXTRA_BITS)
 
 static int
 _dtoa(_Printf_info *pi, double64 x)
 {
     double64 a;
     uint64_t ai;
-    uint64_t half = DOUBLE_ONE>>1;
+    uint64_t half = EXTRA_ONE>>1;
     int i;
     DI u;
     int digit;
@@ -650,6 +659,7 @@ _dtoa(_Printf_info *pi, double64 x)
     int expprec = 2;
     int needPrefix = 0;
     int hexSign = 0;
+    int sigdigits; // how many digits are actually significant
 
     char *buf;
     char *origbuf;
@@ -729,12 +739,10 @@ _dtoa(_Printf_info *pi, double64 x)
     ai = u.i & DOUBLE_MASK;
     if ( (u.i >> DOUBLE_BITS) != 0 )
         ai |= DOUBLE_ONE;
-    ai = ai<<i;
 
-    // if base 2, print digits in hex
-    if (base == 2) {
-        base = 16;
-    }
+    // adjust for exponent and for extra rounding bits
+    ai = ai<<(i + (EXTRA_BITS-DOUBLE_BITS));
+
 recalc_prec:
     if (isGFmt) {
         // for g format, special handling
@@ -760,21 +768,29 @@ recalc_prec:
     if (halfpt == -1) {
         half = half * base;
     } else {
-        if (halfpt > MAX_PREC && ai != 0)
+        if (base == 10 && halfpt > MAX_PREC && ai != 0) {
             halfpt = MAX_PREC;
+        }
         for (i = 0; i < halfpt; i++) {
             half = half / base;
         }
     }
     // want to round to nearest even
-    if (!(ai & DOUBLE_ONE) && half > 0) {
+    // unfortunately, that requires knowing the low bit of the last
+    // digit :(
+#if 0
+              // this is wrong, it's not ai we care about, it's the
+              // bottom digit
+    if (!(ai & EXTRA_ONE) && half > 0) {
         // if ai is even, just slightly decrease half
         // so as to round down instead of up on exact half matches
         --half;
     }
-    ai += half;
+#endif
+    if (base == 10)
+        ai += half;
 
-    if (ai >= base*DOUBLE_ONE) {
+    if (ai >= base*EXTRA_ONE) {
         ai = ai/base;
         ex++;
         // may have to re-calculate how we do %g
@@ -782,6 +798,11 @@ recalc_prec:
             prec = origprec;
             goto recalc_prec;
         }
+    }
+
+    // if base 2, print digits in hex
+    if (base == 2) {
+        base = 16;
     }
 
     //
@@ -853,18 +874,25 @@ recalc_prec:
     //
     // now extract digits
     //
+    sigdigits = ndigits;
+    if (base == 10 && sigdigits > MAX_PREC) {
+        sigdigits = MAX_PREC;
+    }
     for( i = 0; i < ndigits; i++) {
-        // extract the digit
-        digit = (ai >> DOUBLE_BITS);
-        // remove the digit
-        ai = ai - ((uint64_t)digit << DOUBLE_BITS);
-        // shift other digits up
-        ai = ai * base;
+        if (i > sigdigits) {
+            *buf++ = '0';
+        } else {
+            // extract the digit
+            digit = (ai >> EXTRA_BITS);
+            // remove the digit
+            ai = ai - ((uint64_t)digit << EXTRA_BITS);
+            // shift other digits up
+            ai = ai * base;
 
-        // convert to hex
-        digit += (digit >= 10) ? ('a'-10) : '0';
-        *buf++ = digit;
-
+            // convert to hex
+            digit += (digit >= 10) ? ('a'-10) : '0';
+            *buf++ = digit;
+        }
         // insert decimal if needed
         if (i == decpt)
             *buf++ = '.';

@@ -37,7 +37,7 @@ cog:	$(OBJDIR) install-includes
 	cp $(OBJDIR)/cog/libcog.a $(DEST)/lib/
 
 # libtiny.a needs to be built after the c++ library
-tiny:	$(OBJDIR)
+tiny:	$(OBJDIR) .FORCE
 	make -f Makefile.incl MODEL=lmm OBJDIR=$(OBJDIR) tiny
 	make -f Makefile.incl MODEL=lmm SHORTDOUBLES=1 OBJDIR=$(OBJDIR) tiny
 	make -f Makefile.incl MODEL=cmm OBJDIR=$(OBJDIR) tiny

@@ -75,6 +75,7 @@ main()
   TEST1("%g", (double)toFloat(0x7fefffffffffffffLL), "1.79769e+308");
   TEST1("%E", -1.45e-30, "-1.450000E-30");
   TEST1("%e", 7.895e+40, "7.895000e+40");
+  TEST1("%a", 0x1.abcdp+40, "0x1.abcdp+40");
   printf("ok\n");
 
   printf("testing wide characters: "); fflush(stdout);

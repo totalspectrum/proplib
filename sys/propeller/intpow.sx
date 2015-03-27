@@ -1,0 +1,168 @@
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'' lib1funcs.asm: general assembly language helper routines for libgcc
+'' most notable are the floating point routines (float is based on F32,
+'' double is original) and some miscellaneous memory functions
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+''        F32 - Concise floating point code for the Propeller
+''        Copyright (c) 2011 Jonathan "lonesock" Dummer
+''
+''        Released under the MIT License (see the end of this file for details)
+''        Modified by Eric Smith for GAS and LMM, and to fix rounding and
+''        handling of infinity.
+''
+''    
+''        +--------------------------------------------------------------------------+
+''        | IEEE 754 compliant 32-bit floating point math routines for the Propeller |
+''        | Based on Float32 & Float32Full v1.5, by Cam Thompson                     |
+''        | Modified by Jonathan (lonesock) to try to fit all functionality into     |
+''        |              a single cog, and speed-up the routines where possible.     |
+''        +--------------------------------------------------------------------------+
+
+			'' global definitions for everything in this file
+#define SignFlag 0x01
+#define ZeroFlag 0x02
+#define InfFlag  0x04
+#define NaNFlag  0x08
+#define StickyBit 0x10
+
+	
+			.equ	manA, r5
+			.equ	flagA, r6
+			.equ	expA, r7
+			.equ	manB, r2
+			.equ	flagB, r3
+			.equ	expB, r4
+
+	''
+	'' calculate r = a*b^n, where n is an signed integer
+	''
+	'' input: (r0,r1) = a
+	''        (r2,r3) = n
+	''	  r4 = n
+	''
+	'' need registers for x and r
+	''
+#include "asmdouble.h"
+	.equ	C, r8
+	.equ	Clo, r9
+	.equ	expC,r10
+	.equ	Cflag,r11
+
+	.global __intpowdf
+	.global	__intpow
+__intpowdf
+__intpow
+	lpushm	#8+(8<<4)	'' save all registers
+	mov	C, r4		'' save N
+	lcall	#__load_double_code
+	lcall	#__DUnpack2
+
+	'' push A
+	sub	sp,#4		'' push A
+	wrlong	A,sp
+	sub	sp,#4
+	wrlong	Alo,sp
+	sub	sp,#4
+	wrlong	expA,sp
+	sub	sp,#4
+	wrlong	Aflag,sp
+
+	'' set A = 1.0
+	mov    Alo,#0
+	mov    expA,#0
+	mov    Aflag,#0
+	mov    A,#1
+	shl    A,#28
+
+	abs	r0,C
+	mov	r1,C
+.loop
+	''
+	'' at this point, A contains the current result, and B contains x^n
+	''
+	shr	r0,#1 wc
+  if_nc brs	#.skipmul
+  	'' save B
+  	mov	C,B
+	mov	Clo,Blo
+	mov	Cflag,Bflag
+	mov	expC,expB
+	'' A = A * B
+	lcall	#__df_Mul
+	call	#__Normalize
+	mov	B,C
+	mov	Blo,Clo
+	mov	Bflag,Cflag
+	mov	expB,expC
+.skipmul
+	cmp	r0,#0 wz
+  if_z	brs	#pow_done
+	'' need to update B as B*B
+	'' save A
+	mov	C,A
+	mov	Clo,Alo
+	mov	Cflag,Aflag
+	mov	expC,expA
+	mov	A,B
+	mov	Alo,Blo
+	mov	Aflag,Bflag
+	mov	expA,expB
+	lcall	#__df_Mul
+	call	#__Normalize
+	mov	B,A
+	mov	Blo,Alo
+	mov	Bflag,Aflag
+	mov	expB,expA
+	'' restore old A
+	mov	A,C
+	mov	Alo,Clo
+	mov	Aflag,Cflag
+	mov	expA,expC
+	brs	#.loop
+
+pow_done
+	'' A contains the current result; put it in B
+	mov	B, A
+	mov	Blo, Alo
+	mov	Bflag, Aflag
+	mov	expB, expA
+
+	'' pop old A
+	rdlong	Aflag, sp
+	add	sp, #4
+	rdlong	expA, sp
+	add	sp, #4
+	rdlong	Alo, sp
+	add	sp, #4
+	rdlong	A, sp
+	add	sp, #4
+
+	'' either multiply or divide, based on original value of N (saved in r1)
+	shl	r1, #1 wc
+  if_c	brs	#pow_was_neg
+  	lcall	#__df_Mul
+	brs	#pow_fixup
+pow_was_neg
+	lcall	#__df_Div
+pow_fixup
+	lcall	#__DPack
+	lpopm	#15+(8<<4)
+	lret
+/*
++------------------------------------------------------------------------------------------------------------------------------+
+|                                                   TERMS OF USE: MIT License                                                  |                                                            
++------------------------------------------------------------------------------------------------------------------------------+
+|Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation    | 
+|files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy,    |
+|modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software|
+|is furnished to do so, subject to the following conditions:                                                                   |
+|                                                                                                                              |
+|The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.|
+|                                                                                                                              |
+|THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE          |
+|WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR         |
+|COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,   |
+|ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                         |
++------------------------------------------------------------------------------------------------------------------------------+
+*/
