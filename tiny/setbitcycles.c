@@ -23,7 +23,7 @@
 unsigned int _bitcycles;
 unsigned int _serialLock;
 
-FILE __files[1];
+FILE __files[1] = { 0 };
 
 HUBTEXT int _setBitCycles()
 {
