@@ -64,6 +64,7 @@ main()
 
   printf("Testing floating point: "); fflush(stdout);
   TEST1("%.3f", 1.234, "1.234");
+  TEST1("%.3g", 9.876e-4, "0.000988");
   TEST1("%e", 1e-5, "1.000000e-05");
   TEST1("%g", 1e-20, "1e-20");
   TEST1("%.1f", 99999999.1, "99999999.1");
