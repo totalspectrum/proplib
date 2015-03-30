@@ -543,46 +543,118 @@ double _intpow(double a, double b, int n)
 
 /*
  * disassemble a positive floating point number x into
- * a,n such that 
+ * ai,n such that 
  * 1.0 <= a < base and x=a * base^n
  * (normally base will be 10, but we can accept 2 as well)
+ * we output ai as an integer, but conceptually it is still
+ * a float with one digit before the decimal point
+ * if numdigits is negative, then make numdigits be n-(numdigits+1)
+ * so as to get that many digits after the decimal point
  */
-static void disassemble(double64 x, double64 *ap, int *np, int basen)
+#define DOUBLE_BITS 52
+#define DOUBLE_ONE (1ULL<<DOUBLE_BITS)
+#define DOUBLE_MASK (DOUBLE_ONE-1)
+
+static void disassemble(double x, uint64_t *aip, int *np, int numdigits, int base)
 {
-    double64 a;
-    double64 p;
-    double64 base = (double64)basen;
+    double a;
+    double p;
+    int maxdigits;
+    double based = (double)base;
+    uint64_t ai;
+    uint64_t u;
+    uint64_t maxu;
     int n;
     int i;
+    int trys;
+    DI un;
+
 
     if (x == 0.0) {
-        *ap = x;
+        *aip = 0;
         *np = 0;
         return;
     }
+
+    // first, find (a,n) such that
+    // 1.0 <= a < base and x = a * base^n
+ 
     n = ilogb(x);
-    if (base == 10.0) {
+    if (base == 10) {
         // initial estimate: 2^10 ~= 10^3, so 3/10 of ilogb is a good first guess
         n = (3 * n)/10 ;
+        maxdigits = 17;
+    } else {
+        maxdigits = 53;  // for base 2
     }
     
-    for( i = 0; i < 30; i++) {  // provide a retry limit
+    for (trys = 0; trys < 8; trys++) {
         //
         //
-        p = _intpow(1.0, base, n);
+        p = _intpow(1.0, based, n);
         a = x / p;
         if (a < 1.0) {
             --n;
-        } else if (a >= base) {
+        } else if (a >= based) {
             ++n;
         } else {
             break;
         }
     }
-    *ap = a;
+#ifdef TEST
+    if (trys == 8) {
+        fprintf(stderr, "Warning hit retry count\n");
+    }
+#endif
+    i = ilogb(a);
+    un.d = a;
+    ai = un.i & DOUBLE_MASK;
+    ai |= DOUBLE_ONE;
+    ai = ai<<i;
+
+    // base 2 we will group digits into 4 to print as hex
+    if (base == 2) numdigits *= 4;
+
+    // now extract as many significant digits as we can
+    // into u
+    u = 0;
+    if (numdigits< 0) {
+        numdigits = n - numdigits;
+
+        // "0" digits is a special case (we may need to round the
+        // implicit 0 up to 1)
+        // negative digits will always mean 0 though
+        if (numdigits < 0) {
+            goto done;
+        }
+    } else {
+        numdigits = numdigits+1;
+    }
+    if (numdigits > maxdigits)
+        numdigits = maxdigits;
+    maxu = 1; // for overflow
+    while ( u < DOUBLE_ONE && numdigits-- > 0) {
+        uint64_t d;
+        d = (ai >> DOUBLE_BITS); // next digit
+        ai &= DOUBLE_MASK;
+        u = u * base;
+        maxu = maxu * base;
+        ai = ai * base;
+        u = u+d;
+    }
+    //
+    // round
+    //
+    if (ai > (base*DOUBLE_ONE/2) || (ai == (base*DOUBLE_ONE/2) && (u & 1))) {
+        u++;
+        if (u == maxu) {
+            ++n;
+        }
+    }
+done:
+    *aip = u;
     *np = n;
 }
-
 //
 // output the sign and any hex digits required
 // if buf is NULL print using pi
@@ -619,36 +691,15 @@ emitsign(_Printf_info *pi, char *buf, int sign, int hex)
 // find the digits for x 
 // we will output "prec" digits after the decimal point
 //
-
-// DOUBLE_xxx define macros describing the structure of IEEE double precision
-// for rounding purposes we move things up 4 bits (giving 1 extra digit of headroom)
-// these are the EXTRA_xxx macros
-
-#define DOUBLE_BITS 52
-#define DOUBLE_ONE (1ULL<<DOUBLE_BITS)
-#define DOUBLE_MASK (DOUBLE_ONE-1)
-#define MAX_PREC 16
-
-#define EXTRA_BITS 60
-#define EXTRA_ONE (1ULL<<EXTRA_BITS)
-
 static int
-_dtoa(_Printf_info *pi, double64 x)
+_fmt_float(_Printf_info *pi, va_ptr args)
 {
-    double64 a;
+    double x;
     uint64_t ai;
-    uint64_t half = EXTRA_ONE>>1;
     int i;
-    DI u;
-    int digit;
-    int ndigits;
-    int decpt = 0;
     int base = 10;
-    int ex;  // exponent
-    int halfpt;
-    int prefill = 0;
+    int exp;  // exponent
     int prec;
-    int origprec;
     int isExpFmt;  // output should be printed in exponential notation
     int isGFmt;    // format character was %g
     int totalWidth;
@@ -659,11 +710,22 @@ _dtoa(_Printf_info *pi, double64 x)
     int expprec = 2;
     int needPrefix = 0;
     int hexSign = 0;
-    int sigdigits; // how many digits are actually significant
+
+    // we print a series of 0's, then the digits, then more 0's if necessary
+    // to force e.g. 4 leading 0's, set startdigit to -4
+    int startdigit;
+    int decpt;
+    int enddigit;
+    int numdigits;
+    int expdigits;
+    int expsign = 0;
+    char dig[64]; // digits for the number
+    char expdig[8]; // digits for the exponent
 
     char *buf;
     char *origbuf;
 
+    x = va_ptrarg(args,  double);
     prec = pi->prec;
 
     // check various format stuff
@@ -691,7 +753,6 @@ _dtoa(_Printf_info *pi, double64 x)
         }
     }
     pi->prec = -1; // so we can print arbitrarily long strings with pi
-    origprec = prec;
 
     if ( signbit(x) ) {
         // work on non-negative values only
@@ -729,115 +790,62 @@ _dtoa(_Printf_info *pi, double64 x)
         if (sign) *buf++ = sign;
         strcpy(buf, "nan");
         goto done;
-    } else {
-        disassemble(x, &a, &ex, base);
     }
 
-    // now, a satisfies a * 10^n == x
-    i = ilogb(a);
-    u.d = a;
-    ai = u.i & DOUBLE_MASK;
-    if ( (u.i >> DOUBLE_BITS) != 0 )
-        ai |= DOUBLE_ONE;
-
-    // adjust for exponent and for extra rounding bits
-    ai = ai<<(i + (EXTRA_BITS-DOUBLE_BITS));
-
-recalc_prec:
     if (isGFmt) {
+        // find the exponent
+        disassemble(x, &ai, &exp, prec ? prec - 1 : 0, base);
         // for g format, special handling
         stripTrailingZeros = !(pi->alt);
-        if (prec == 0) prec = 1; // always at least 1 significant digit
-        origprec = prec;
-        if (ex >= prec || ex < -4) {
+        if (exp >= prec || exp < -4) {
             isExpFmt = 1;
-            prec -= 1;
         } else {
-            // precision should be number of significant digits
-            prec = prec - (ex+1);
+            prec = prec - exp;
+            disassemble(x, &ai, &exp, -prec, base);
         }
-    }
-    //
-    // round by adding half
-    //
-    if (isExpFmt) {
-        halfpt = prec;
+    } else if (isExpFmt) {
+        disassemble(x, &ai, &exp, prec, base);
     } else {
-        halfpt = prec + ex;
-    }
-    if (halfpt == -1) {
-        half = half * base;
-    } else {
-        if (base == 10 && halfpt > MAX_PREC && ai != 0) {
-            halfpt = MAX_PREC;
-        }
-        for (i = 0; i < halfpt; i++) {
-            half = half / base;
-        }
-    }
-    // want to round to nearest even
-    // unfortunately, that requires knowing the low bit of the last
-    // digit :(
-#if 0
-              // this is wrong, it's not ai we care about, it's the
-              // bottom digit
-    if (!(ai & EXTRA_ONE) && half > 0) {
-        // if ai is even, just slightly decrease half
-        // so as to round down instead of up on exact half matches
-        --half;
-    }
-#endif
-    if (base == 10)
-        ai += half;
-
-    if (ai >= base*EXTRA_ONE) {
-        ai = ai/base;
-        ex++;
-        // may have to re-calculate how we do %g
-        if (isGFmt) {
-            prec = origprec;
-            goto recalc_prec;
-        }
-    }
-
-    // if base 2, print digits in hex
-    if (base == 2) {
-        base = 16;
+        disassemble(x, &ai, &exp, -(prec+1), base);
     }
 
     //
     // figure out how many digits we have to print
     //
-    if (isExpFmt) {
-        ndigits = prec+1;
+
+    // put the digits in their buffers
+    // now, a satisfies ai * 10^exp == x
+    // if base 2, print digits in hex
+    if (base == 2) {
+        base = 16;
+    }
+
+    numdigits = _lltoa(ai, dig, 1, base);
+    if (exp < 0) {
+        expsign = '-';
+        expdigits = _lltoa(-exp, expdig, expprec, 10);
     } else {
-        decpt = ex;
-        ex++;
-        if (ex > 0) {
-            ndigits = prec + ex;
+        expsign = '+';
+        expdigits = _lltoa(exp, expdig, expprec, 10);
+    }
+
+    if (isExpFmt) {
+        startdigit = decpt = 0;
+        enddigit = prec + 1;
+    } else {
+        if (exp < 0) {
+            // force leading 0's
+            startdigit = decpt = exp;
+            enddigit = exp + prec + 1;
         } else {
-            ex = -ex;
-            // we will have to emit some number of bytes ahead of time
-            // prefill is the number of bytes to send out ahead of time
-            // normally this will be "ex" bytes
-            // however, send out no more than "prec" bytes
-            if (ex > prec)
-                prefill = prec;
-            else
-                prefill = ex;
-            if (prefill < 0) prefill = 0;
-            // since we are already outputting some 0's after the
-            // decimal point, reduce the number of digits to output
-            // accordingly
-            prec -= prefill;
-            ndigits = prec;
-            decpt = -1;  // handled in prefill
-            prefill += 2; // for the 0.
+            startdigit = 0;
+            decpt = exp;
+            enddigit = decpt + prec + 1;
         }
     }
 
     // allocate a string buffer; leave extra room for '.' just in case
-    totalWidth = prefill + ndigits + 1;
+    totalWidth = (enddigit - startdigit) + 1;
     if (sign) {
         totalWidth++;  // we will be printing '+' or '-'
     }
@@ -845,12 +853,8 @@ recalc_prec:
         totalWidth += 2;  // for '0x'
     }
     if (isExpFmt) {
-        totalWidth += 4; // (for e+00)
         // exponents can go up to +- 1024
-        if (ex >= 100 || ex <= -100)
-            totalWidth++;
-        if (ex >= 1000 || ex <= -1000)
-            totalWidth++;
+        totalWidth += 2 + expdigits; // (for e+1024)
     }
 
     origbuf = buf = alloca(totalWidth + 1);
@@ -863,40 +867,17 @@ recalc_prec:
     }
     //
     //
-    // emit leading zeros
+    // emit the number
     //
-    if (prefill > 0) {
-        *buf++ = '0'; *buf++ = '.'; prefill -= 2;
-        for (i = 0; i < prefill; i++) {
-            *buf++ = '0';
-        }
-    }
-    //
-    // now extract digits
-    //
-    sigdigits = ndigits;
-    if (base == 10 && sigdigits > MAX_PREC) {
-        sigdigits = MAX_PREC;
-    }
-    for( i = 0; i < ndigits; i++) {
-        if (i > sigdigits) {
-            *buf++ = '0';
+    for (i = startdigit; i < enddigit; i++) {
+        if (i >= 0 && i < numdigits) {
+            *buf++ = dig[i];
         } else {
-            // extract the digit
-            digit = (ai >> EXTRA_BITS);
-            // remove the digit
-            ai = ai - ((uint64_t)digit << EXTRA_BITS);
-            // shift other digits up
-            ai = ai * base;
-
-            // convert to hex
-            digit += (digit >= 10) ? ('a'-10) : '0';
-            *buf++ = digit;
+            *buf++ = '0';
         }
-        // insert decimal if needed
-        if (i == decpt)
+        if (i == decpt) {
             *buf++ = '.';
-
+        }
     }
 
     if (stripTrailingZeros) {
@@ -922,14 +903,10 @@ recalc_prec:
     if (isExpFmt)
     {
         *buf++ = expchar;  // 'p' for hex, 'e' for decimal
-        if (ex < 0) {
-            *buf++ = '-';
-            ex = -ex;
-        } else {
-            *buf++ = '+';
+        *buf++ = expsign;
+        for (i = 0; i < expdigits; i++) {
+            *buf++ = expdig[i];
         }
-        _lltoa( ex, buf, expprec, 10);
-        while(*buf) buf++;
     }
 
     *buf = 0;
@@ -943,17 +920,6 @@ done:
     return _fmtputstr(origbuf, pi);
 }
 
-static int _fmt_float(_Printf_info *pi, va_ptr args)
-{
-    double64 x;
-
-    if (pi->longflag) {
-        x = va_ptrarg(args, long double);
-    } else {
-        x = va_ptrarg(args, double);
-    }
-    return _dtoa(pi, x);
-}
 #endif
 
 /*
