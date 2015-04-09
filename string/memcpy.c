@@ -43,6 +43,8 @@ memcpy(void *dest_p, const void *src_p, size_t n)
     src_p = src;
   }
 
+  /* fall through and copy any remaining (non-aligned) data */
+  /* we may not have finished everything in the loop above */
   {
     char *dst = dest_p;
     const char *src = src_p;
