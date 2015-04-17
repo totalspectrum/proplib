@@ -37,6 +37,6 @@ ilogbf(float x)
 
 #if defined(__SHORT_DOUBLES_IMPL)
 
-__weak_alias(ilogb, ilogbf);
+__strong_alias(ilogb, ilogbf);
 
 #endif
