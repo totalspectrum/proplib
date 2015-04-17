@@ -15,6 +15,7 @@
 
 #include "math.h"
 #include "math_private.h"
+#include <compiler.h>
 
 int
 ilogbf(float x)
@@ -33,3 +34,9 @@ ilogbf(float x)
 	else if (hx<0x7f800000) return (hx>>23)-127;
 	else return 0x7fffffff;
 }
+
+#if defined(__SHORT_DOUBLES_IMPL)
+
+__weak_alias(ilogb, ilogbf);
+
+#endif
