@@ -555,12 +555,12 @@ double _intpow(double a, double b, int n)
 #define DOUBLE_ONE (1ULL<<DOUBLE_BITS)
 #define DOUBLE_MASK (DOUBLE_ONE-1)
 
-static void disassemble(double x, uint64_t *aip, int *np, int numdigits, int base)
+static void disassemble(double64 x, uint64_t *aip, int *np, int numdigits, int base)
 {
-    double a;
-    double p;
+    double64 a;
+    double64 p;
     int maxdigits;
-    double based = (double)base;
+    double64 based = (double64)base;
     uint64_t ai;
     uint64_t u;
     uint64_t maxu;
@@ -578,8 +578,11 @@ static void disassemble(double x, uint64_t *aip, int *np, int numdigits, int bas
 
     // first, find (a,n) such that
     // 1.0 <= a < base and x = a * base^n
- 
-    n = ilogb(x);
+    if (sizeof(x) == sizeof(double)) {
+        n = ilogb(x);
+    } else {
+        n = ilogbl(x);
+    }
     if (base == 10) {
         // initial estimate: 2^10 ~= 10^3, so 3/10 of ilogb is a good first guess
         n = (3 * n)/10 ;
@@ -606,7 +609,11 @@ static void disassemble(double x, uint64_t *aip, int *np, int numdigits, int bas
         fprintf(stderr, "Warning hit retry count\n");
     }
 #endif
-    i = ilogb(a);
+    if (sizeof(a) == sizeof(double)) {
+        i = ilogb(a);
+    } else {
+        i = ilogbl(a);
+    }
     un.d = a;
     ai = un.i & DOUBLE_MASK;
     ai |= DOUBLE_ONE;
