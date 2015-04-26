@@ -529,16 +529,15 @@ typedef union DI {
 } DI;
 
 #ifdef __propeller__
-extern long double _intpow(long double a, long double b, int n);
+struct hifloat {
+    uint64_t ai;
+    int      exp;
+    int      flags;
+};
+extern long double _intpowfx(long double a, long double b, int n, struct hifloat *p);
+extern void _intpowix(uint64_t a, uint64_t b, int n, struct hifloat *p);
 #else
-// calculate a*b^n with as much precision as possible
-double _intpow(double a, double b, int n)
-{
-    long double p10 = powl((long double)b, (long double)n);
-    long double r = p10 * (long double)a;
-
-    return (double)r;
-}
+#error need intpowfx
 #endif
 
 /*
@@ -551,24 +550,21 @@ double _intpow(double a, double b, int n)
  * if numdigits is negative, then make numdigits be n-(numdigits+1)
  * so as to get that many digits after the decimal point
  */
-#define DOUBLE_BITS 52
+#define DOUBLE_BITS 60
 #define DOUBLE_ONE (1ULL<<DOUBLE_BITS)
 #define DOUBLE_MASK (DOUBLE_ONE-1)
 
 static void disassemble(double64 x, uint64_t *aip, int *np, int numdigits, int base)
 {
     double64 a;
-    double64 p;
     int maxdigits;
     double64 based = (double64)base;
     uint64_t ai;
     uint64_t u;
     uint64_t maxu;
     int n;
-    int i;
     int trys;
-    DI un;
-
+    struct hifloat hf;
 
     if (x == 0.0) {
         *aip = 0;
@@ -594,8 +590,7 @@ static void disassemble(double64 x, uint64_t *aip, int *np, int numdigits, int b
     for (trys = 0; trys < 8; trys++) {
         //
         //
-        p = _intpow(1.0, based, n);
-        a = x / p;
+        a = _intpowfx(x, based, -n, &hf);
         if (a < 1.0) {
             --n;
         } else if (a >= based) {
@@ -609,16 +604,11 @@ static void disassemble(double64 x, uint64_t *aip, int *np, int numdigits, int b
         fprintf(stderr, "Warning hit retry count\n");
     }
 #endif
-    if (sizeof(a) == sizeof(double)) {
-        i = ilogb(a);
+    if (hf.exp < 0) {
+        ai = hf.ai >> -hf.exp;
     } else {
-        i = ilogbl(a);
+        ai = hf.ai << hf.exp;
     }
-    un.d = a;
-    ai = un.i & DOUBLE_MASK;
-    ai |= DOUBLE_ONE;
-    ai = ai<<i;
-
     // base 2 we will group digits into 4 to print as hex
     if (base == 2) numdigits *= 4;
 

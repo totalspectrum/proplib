@@ -3,6 +3,7 @@
  * Convert string to double.
  *
  * Copyright (c) 2011 Parallax, Inc.
+ * Copyright (c) 2015 Total Spectrum Software Inc.
  * Written by Eric R. Smith, Total Spectrum Software Inc.
  * MIT licensed (see terms at end of file)
  */
@@ -13,77 +14,26 @@
 #include <math.h>
 #include <compiler.h>
 #include <errno.h>
+#include <stdint.h>
 
-#if 0
-/*
- * calculate v * 10^n
- *
- * e.g. for v * 10^13 (where 13 = 0xD == 0b01101) 
- *
- * calc = 10.0 * 10^4 * 10^8
- */
-static long double _tens[] = {
-  1.0e2L, 1.0e4L, 1.0e8L, 1.0e16L,
-  1.0e32L, 1.0e64L, 1.0e128L, 1.0e256L
-};
-static long double _tenths[] = {
-  1.0e-2L, 1.0e-4L, 1.0e-8L, 1.0e-16L,
-  1.0e-32L, 1.0e-64L, 1.0e-128L, 1.0e-256L
-};
-
-long double
-__mul_pow10(long double v, int n)
-{
-  long double powten;
-  long double calc = 1.0;
-  int idx = 0;
-  long double *table;
-
-  if (n < 0)
-    {
-      powten = 0.1;
-      table = _tenths;
-      n = -n;
-    }
-  else
-  {
-      powten = 10.0;
-      table = _tens;
-  }
-  while (n > 0)
-    {
-        if (n & 1)
-	{
-	    calc = calc * powten;
-	}
-        if (idx < 8) {
-            powten = table[idx];
-            idx++;
-        } else {
-            powten = powten * powten;
-        }
-        n = n>>1;
-    }
-  v = v * calc;
-  return v;
-}
-#else
-extern long double _intpowdf(long double a, long double b, int n);
-#define mypow _intpowdf
-#endif
+// calculate a*b^n with extra precision
+extern long double _intpowfx(long double a, long double b, int n, void *);
+extern long double _intpowix(uint64_t a, uint64_t b, int n, void *);
 
 long double
 strtold(const char *str, char **endptr)
 {
   long double v = 0.0;
-  long double base = 10.0;
+  int base = 10;
   int hex = 0;
   int minus = 0;
   int minuse = 0;
   int c;
   int exp = 0;
-  int expbump;
-  int digits;
+  int digits = 0;
+  int maxdigits;
+  uint64_t ai = 0;
+  int moredigits = 0;
 
   while (isspace(*str))
     str++;
@@ -125,53 +75,65 @@ strtold(const char *str, char **endptr)
 
   if (c == '0' && toupper(*str) == 'X') {
     hex = 1;
-    base = 16.0;
+    base = 16;
     str++;
     c = toupper(*str++);
   }
 
   if (hex) {
-    digits = 14;
+    maxdigits = 13;
   } else {
-    digits = 18;
+    maxdigits = 17;
   }
 
-  /* get up to "digits" digits */
+  /* get up to "maxdigits" digits */
   exp = 0;
-  expbump = 0;
   v = 0.0;
 
-  while (digits > 0
-	 && (isdigit(c) 
-	     || (hex && isxdigit(c) && (c = c - 'A' + 10 + '0'))
-	     || (c == '.' && expbump == 0)))
-    {
-      if (c == '.') {
-	expbump = -1;
+  while ( isdigit(c) 
+          || (hex && isxdigit(c) && (c = c - 'A' + 10 + '0') ) )
+  {
+      if (digits <  maxdigits) {
+          ai = ai * base + (c - '0');
+          digits++;
       } else {
-	v = base * v + (c - '0');
-	exp += expbump;
-	--digits;
+          exp++;
+          // round if this is the first extra digit seen
+          if (!moredigits) {
+              if ( (c - '0') >= base/2 ) ai++;
+          }
+          moredigits = 1;
       }
       c = toupper(*str++);
-    }
-  expbump++;
-  // skip any superfluous digits 
-  while (isdigit(c) || (hex && isxdigit(c)) || (c == '.' && expbump == 1))
-    {
-      if (c == '.')
-	expbump = 0;
-      else
-	exp += expbump;
+  }
+  if (c == '.') {
       c = toupper(*str++);
-    }
-
+      while (c == '0' && ai == 0) {
+          --exp;
+          c = toupper(*str++);
+      }
+      while ( isdigit(c) 
+              || (hex && isxdigit(c) && (c = c - 'A' + 10 + '0') ) )
+      {
+          if (digits < maxdigits) {
+              ai = ai * base + (c - '0');
+              digits++;
+              --exp;
+          } else {
+              // round if this is the first extra digit seen
+              if (!moredigits) {
+                  if ( (c - '0') >= base/2 ) ai++;
+              }
+              moredigits = 1;
+          }
+          c = toupper(*str++);
+      }
+  }
   if (hex) {
     // convert exponent to binary
     exp *= 4;
   }
-  if (c == 'E' || c == 'P') 
-    {
+  if (c == 'E' || (hex && c == 'P') ) {
       int tmpe = 0;
       c = *str++;
       if (c == '-') {
@@ -180,35 +142,27 @@ strtold(const char *str, char **endptr)
       } else if (c == '+') {
 	c = *str++;
       }
-      while (isdigit(c))
-	{
+      while (isdigit(c)) {
 	  tmpe = 10*tmpe + (c-'0');
 	  c = *str++;
-	}
-      if (minuse)
-	{
+      }
+      if (minuse) {
 	  tmpe = -tmpe;
-	}
+      }
       exp += tmpe;
-    }
-
-#if 0
-  if (hex) {
-      v = ldexp(v, exp);
-  } else {
-      v = __mul_pow10(v, exp);
   }
-#else
-  v = mypow(v, hex ? 2.0L : 10.0L, exp);
-#endif
-  if (v == HUGE_VALL)
-    errno = ERANGE;
 
+  v = _intpowix(ai, hex ? 2 : 10, exp, NULL);
+
+  if (v == HUGE_VALL) {
+    errno = ERANGE;
+  }
  done:
   if (endptr)
     *endptr = (char *)(str-1);
-  if (minus)
-    v = -v;
+  if (minus) {
+      v = copysignl(v, -1.0L); // make sure nan is signed properly
+  }
   return v;
 }
 

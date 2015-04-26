@@ -66,13 +66,12 @@ main()
   TEST1("%.3f", 1.234, "1.234");
   TEST1("%.3g", 9.876e-4, "0.000988");
   TEST1("%e", 1e-5, "1.000000e-05");
+  TEST1("%g", 1.001e-20, "1.001e-20");
+  TEST1("%g", 9.99e-21, "9.99e-21");
   TEST1("%g", 1e-20, "1e-20");
   TEST1("%.1f", 99999999.1, "99999999.1");
   TEST1("%.1f", 1.23e+20, "123000000000000000000.0");
-#if __GNUC__ > 4
-  // only the new _intpow can handle this much precision
-  TEST1("%g", (double)toFloat(0x1), "5e-324");
-#endif
+  TEST1("%.1g", (double)toFloat(0x1), "5e-324");
   TEST1("%g", (double)toFloat(0x7fefffffffffffffLL), "1.79769e+308");
   TEST1("%E", -1.45e-30, "-1.450000E-30");
   TEST1("%e", 7.895e+40, "7.895000e+40");

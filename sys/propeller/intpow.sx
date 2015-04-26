@@ -2,22 +2,6 @@
 '' lib1funcs.asm: general assembly language helper routines for libgcc
 '' most notable are the floating point routines (float is based on F32,
 '' double is original) and some miscellaneous memory functions
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-''        F32 - Concise floating point code for the Propeller
-''        Copyright (c) 2011 Jonathan "lonesock" Dummer
-''
-''        Released under the MIT License (see the end of this file for details)
-''        Modified by Eric Smith for GAS and LMM, and to fix rounding and
-''        handling of infinity.
-''
-''    
-''        +--------------------------------------------------------------------------+
-''        | IEEE 754 compliant 32-bit floating point math routines for the Propeller |
-''        | Based on Float32 & Float32Full v1.5, by Cam Thompson                     |
-''        | Modified by Jonathan (lonesock) to try to fit all functionality into     |
-''        |              a single cog, and speed-up the routines where possible.     |
-''        +--------------------------------------------------------------------------+
 
 			'' global definitions for everything in this file
 #define SignFlag 0x01
@@ -37,9 +21,12 @@
 	''
 	'' calculate r = a*b^n, where n is an signed integer
 	''
-	'' input: (r0,r1) = a
-	''        (r2,r3) = n
+	'' input: (r0,r1) = a (uint64 for intpowix, double for intpowfx)
+	''        (r2,r3) = b (uint64 for intpowix, double for intpowfx)
 	''	  r4 = n
+	''        r5 = ptr (where the expanded result is placed, if nonzero)
+	''
+	'' output: (r0,r1) = r (long double)
 	''
 	'' need registers for x and r
 	''
@@ -49,15 +36,54 @@
 	.equ	expC,r10
 	.equ	Cflag,r11
 
-	.global __intpowdf
-	.global	__intpow
-__intpowdf
-__intpow
-	lpushm	#8+(8<<4)	'' save all registers
-	mov	C, r4		'' save N
-	lcall	#__load_double_code
-	lcall	#__DUnpack2
+	'' this version writes the result as 4 longs to a pointer
+	'' passed in as r5
 
+	.global __intpowix
+__intpowix
+	lpushm	#8+(8<<4)	'' save all registers
+	'' push r5
+	sub	sp,#4		'' push A
+	wrlong	r5,sp
+	
+	mov	C, r4		'' save N
+
+	lcall	#__load_double_code
+	'' set up B to contain second number
+	mov    A, r3
+	mov    Alo, r2
+	mov    Aflag, #0
+	mov    expA, #(28+32)
+	call   #__Normalize
+	mov    B, A
+	mov    Blo, Alo
+	mov    expB, expA
+	mov    Bflag, Aflag
+
+	'' similarly for A
+	mov    A, r1
+	mov    Alo, r0
+	mov    Aflag, #0
+	mov    expA, #(28+32)
+	call   #__Normalize
+
+	brs	#__startpow
+
+	.global __intpowfx
+__intpowfx
+	lpushm	#8+(8<<4)	'' save all registers
+
+	'' push r5
+	sub	sp,#4		'' push A
+	wrlong	r5,sp
+	
+	mov	C, r4		'' save N
+
+	lcall	#__load_double_code
+	'' set up A and B
+	lcall  #__DUnpack2
+
+__startpow
 	'' push A
 	sub	sp,#4		'' push A
 	wrlong	A,sp
@@ -146,6 +172,22 @@ pow_done
 pow_was_neg
 	lcall	#__df_Div
 pow_fixup
+        call	#__Normalize
+
+	'' depending on how we were called, we will either return a double
+	'' or store the unpacked data
+	rdlong  r0,sp
+	add	sp,#4
+	cmp	r0,#0 wz
+  if_z  brs	#dopack
+  	wrlong	Alo, r0
+	add	r0, #4
+	wrlong	A, r0
+	add	r0, #4
+	wrlong	expA, r0
+	add	r0, #4
+	wrlong  Aflag,r0
+dopack:
 	lcall	#__DPack
 	lpopm	#15+(8<<4)
 	lret
