@@ -10,6 +10,7 @@
 #endif
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include <stdint.h>
 #include <string.h>
@@ -30,9 +31,11 @@
 #ifdef SMALL_INT
 #define UITYPE uint32_t
 #define ITYPE  int32_t
+#define ITOA_PREC   _itoa_prec
 #else
 #define UITYPE uint64_t
 #define ITYPE  int64_t
+#define ITOA_PREC   _lltoa_prec
 #endif
 #define BITCOUNT (8*sizeof(UITYPE))
 
@@ -40,35 +43,6 @@ static int
 hibit(UITYPE x)
 {
     return (x >> (BITCOUNT-1));
-}
-
-//
-// convert an unsigned 64 bit number to ASCII in an an arbitrary base
-// "buf" is the output buffer, which must be big enough to
-// hold it
-//
-// "prec" is the minimum number of digits to output
-// returns number of digits produced
-//
-
-static int
-_lltoa( UITYPE x, char *buf, int prec, unsigned base )
-{
-    int digits = 0;
-    int c;
-
-    if (prec < 0) prec = 1;
-
-    while (x > 0 || digits < prec) {
-        c = x % base;
-        x = x / base;
-        if (c < 10) c += '0';
-        else c = (c - 10) + 'a';
-        buf[digits++] = c;
-    }
-    buf[digits] = 0;
-    _strrev(buf);
-    return digits;
 }
 
 //
@@ -314,7 +288,7 @@ static int _fmtinteger( _Printf_info *pi, va_ptr args, int base, int isSigned )
         }
     }
 
-    _lltoa(ui, digits, pi->prec, base);
+    ITOA_PREC(ui, digits, base, pi->prec);
     pi->prec = -1;
     pi->longflag = 0;
     if (needupper) {
@@ -791,13 +765,13 @@ _fmt_float(_Printf_info *pi, va_ptr args)
         base = 16;
     }
 
-    numdigits = _lltoa(ai, dig, 1, base);
+    numdigits = ITOA_PREC(ai, dig, base, 1);
     if (exp < 0) {
         expsign = '-';
-        expdigits = _lltoa(-exp, expdig, expprec, 10);
+        expdigits = ITOA_PREC(-exp, expdig, 10, expprec);
     } else {
         expsign = '+';
-        expdigits = _lltoa(exp, expdig, expprec, 10);
+        expdigits = ITOA_PREC(exp, expdig, 10, expprec);
     }
 
     if (isExpFmt) {

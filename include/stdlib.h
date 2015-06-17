@@ -97,6 +97,9 @@ extern "C" {
   int putenv(char *string);
 #endif
 
+    int _itoa_prec( unsigned int x, char *buf, unsigned base, int prec );
+    int _lltoa_prec( unsigned long long x, char *buf, unsigned base, int prec );
+        
 #if defined(__cplusplus)
 }
 #endif
