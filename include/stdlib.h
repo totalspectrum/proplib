@@ -51,7 +51,8 @@ extern "C" {
   int atexit(void (*func)(void));
   _NORETURN void exit(int status);
   _NORETURN void abort(void);
-  _NORETURN void _Exit(int status);
+  _NORETURN void _Exit(int status);  /* like exit(), but skips atexit() stuff */
+  _NORETURN void _exit(int status);  /* nonstandard name for _Exit() */
 
   _CONST int abs(int i);
   _CONST long labs(long l);

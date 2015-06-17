@@ -95,7 +95,7 @@ STRING = memcpy.o memmove.o memset.o memchr.o memcmp.o \
 	strcoll.o strxfrm.o \
 	strstr.o strpbrk.o \
 	strerror.o strcasecmp.o strncasecmp.o xmmcopy.o \
-	strdup.o
+	strdup.o strrev.o strupr.o strlwr.o
 
 TIME = clock.o sleep.o usleep.o time.o difftime.o strftime.o localtim.o asctime.o \
 	settimeofday.o gettimeofday.o

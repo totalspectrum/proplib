@@ -41,6 +41,9 @@ size_t strlen(const char *s);
   extern int    _strcasecmp(const char *s1, const char *s2);
   extern int    _strncasecmp(const char *s1, const char *s2, size_t n);
 
+  char   *_strrev(char *str);  /* reverse string in place */
+  char   *_strupr(char *str);  /* convert to upper case in place */
+
 #if !defined(__STRICT_ANSI__)
   int    strcasecmp(const char *s1, const char *s2);
   int    strncasecmp(const char *s1, const char *s2, size_t n);

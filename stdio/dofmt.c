@@ -1,3 +1,8 @@
+//
+// new printf function
+// Written by Eric R. Smith (ersmith@totalspectrum.ca)
+// and placed in the public domain
+//
 #ifdef FLOAT_SUPPORT
 #define FULL_PRINTF
 #else
@@ -35,37 +40,6 @@ static int
 hibit(UITYPE x)
 {
     return (x >> (BITCOUNT-1));
-}
-
-//
-// reverse a string in-place
-//
-void _strrev(char *str)
-{
-    char *end;
-    int c;
-
-    for (end = str; *end; end++) ;
-    --end;
-    while (end > str) {
-        c = *str;
-        *str++ = *end;
-        *end-- = c;
-    }
-}
-
-//
-// make a string upper case
-//
-void _strupper(char *str)
-{
-    int c;
-    while ( (c = *str) != 0 ) {
-        if (c >= 'a' && c <= 'z') {
-            *str = (c - 'a') + 'A';
-        }
-        str++;
-    }
 }
 
 //
@@ -344,7 +318,7 @@ static int _fmtinteger( _Printf_info *pi, va_ptr args, int base, int isSigned )
     pi->prec = -1;
     pi->longflag = 0;
     if (needupper) {
-        _strupper(buf);
+        _strupr(buf);
     }
     return _fmtputstr( buf, pi );
 }
@@ -911,7 +885,7 @@ _fmt_float(_Printf_info *pi, va_ptr args)
 done:
     // convert to upper case if required
     if (needUpper) {
-        _strupper(origbuf);
+        _strupr(origbuf);
     }
     // now output the string
     return _fmtputstr(origbuf, pi);
