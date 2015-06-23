@@ -34,11 +34,15 @@ int _serial_tx(int c, unsigned int txmask, unsigned int bitcycles)
   for (i = 0; i < 10; i++)
     {
       waitcycles = __builtin_propeller_waitcnt(waitcycles, bitcycles);
+#if 0
       if (value & 1)
         _OUTA |= txmask;
       else
         _OUTA &= ~txmask;
       value >>= 1;
+#else
+      value = shiftout(value, txmask, _OUTA);
+#endif
     }
   // if we turn off DIRA, then some boards (like QuickStart) are left with
   // floating pins and garbage output; if we leave it on, we're left with

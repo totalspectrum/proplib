@@ -111,6 +111,40 @@ static __inline__ void togglepin(int pin)
     _DIRA |= mask;
 }
 
+/**
+ * @brief shiftout send the low bit of a register to a pin or pins
+ *
+ * @details 
+ * This inline macro provides an efficient way to send the low
+ * bit of a value out a port.
+ *
+ * @param val Value to be shift right; (val&1) will be placed in port
+ * @param mask Indicates which bits of port should receive the value of
+ *             (val&1); wherever mask has a 1 bit this will be replaced
+ *             with the low bit of val. Wherever mask has a 0 bit port
+ *             will be left unchanged.
+ * @param port Register to be modified according to val and mask;
+ *             typically this will be _OUTA
+ *
+ * @returns val shifted right by 1 (val>>1)
+ */
+#define shiftout(val, mask, port) \
+    __extension__({ \
+    unsigned int ret = val; \
+    __asm__ volatile( \
+        "    shr %[_ret],#1 wc\n" \
+        "    muxc %[_port], %[_mask]\n" \
+        : /* outputs */ \
+          /* "+r" means a register operand that is both read and written */ \
+          [_ret] "+rC" (ret),                                            \
+          [_port] "+rC" (port) \
+        : /* inputs */ \
+          [_mask] "r" (mask) \
+        : /* clobbered registers */ \
+          "cc" /* only the condition codes */   \
+        ); ret; })
+
+
 /// Parameter register is used for sharing HUB RAM address info with the COG.
 #define PAR     _PAR
 /// The system clock count
