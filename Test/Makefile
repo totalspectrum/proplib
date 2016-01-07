@@ -32,7 +32,7 @@ endif
 default: time.run tests
 	make clean
 
-tests: strtod.run scanf.run sprintf.run strtol.run wstring.run ctype.run
+tests: strtod.run scanf.run sprintf.run strtol.run wstring.run ctype.run float.run
 
 testall:
 	make time.run
@@ -83,7 +83,11 @@ scanf.elf: scanf.c
 tmpfile.elf: tmpfile.c
 	$(CC) $(CFLAGS) -o $@ $^ $(LIB)
 
+float.elf: float.c
+	$(CC) $(CFLAGS) -o $@ $^ $(LIB_MC)
 
+
+# the mutex test doesn't have a clean exit condition
 mutex.elf: mutex.c
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBPTHREAD)
 
