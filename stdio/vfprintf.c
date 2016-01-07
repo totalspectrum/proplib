@@ -9,7 +9,9 @@
 int vfprintf(FILE *f, const char *fmt, va_list args)
 {
     int r;
+    __lock(&f->_lock);
     r = _dofmt( (_FmtPutfunc)fputc, (void *)f, fmt, &args);
+    __unlock(&f->_lock);
     return r;
 }
 
