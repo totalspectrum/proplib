@@ -15,8 +15,7 @@ __napuntil(unsigned int newcnt)
     (*__napuntil_ptr)(newcnt);
   else
     {
-      while ((int)(getcnt() - newcnt) < 0)
-	(*__yield_ptr)();
+      waitcnt(newcnt);
     }
 }
 
