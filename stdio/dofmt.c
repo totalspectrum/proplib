@@ -192,7 +192,8 @@ static int _fmtputwstr( const wchar_t *wstr, _Printf_info *pi )
 //
 static int _fmt_unsupported( _Printf_info *pi, va_ptr args )
 {
-    (void)args;
+    (void)va_ptrarg(args, int);
+    pi->prec = -1; // make sure whole string gets out
     return _fmtputstr("unsupported printf, try linking with -lm", pi);
 }
 
