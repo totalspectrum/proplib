@@ -15,8 +15,8 @@
 #include <errno.h>
 
 #ifdef __propeller__
-extern long double _intpow(long double v, long double b, int n);
-#define __mul_pow(v, n, base) (float)_intpow(v, base, n)
+extern long double _intpowfx(long double v, long double b, int n, void *);
+#define __mul_pow(v, n, base) (float)_intpowfx(v, base, n, NULL)
 
 #else
 /*

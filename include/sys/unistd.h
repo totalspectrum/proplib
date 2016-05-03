@@ -30,6 +30,8 @@ extern "C" {
   char *_mktemp(char *templ);
   char *mktemp(char *);
 
+  int unlink(const char *);
+
 #if defined(__cplusplus)
 }
 #endif
